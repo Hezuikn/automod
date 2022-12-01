@@ -1,3 +1,5 @@
+#![feature(track_path, proc_macro_tracked_env)]
+
 //! [![github]](https://github.com/dtolnay/automod)&ensp;[![crates-io]](https://crates.io/crates/automod)&ensp;[![docs-rs]](https://docs.rs/automod)
 //!
 //! [github]: https://img.shields.io/badge/github-8da0cb?style=for-the-badge&labelColor=555555&logo=github
@@ -102,7 +104,7 @@ pub fn dir(input: TokenStream) -> TokenStream {
         None => PathBuf::from(rel_path),
     };
     
-    proc_macro::tracked_path::path(dir);
+    proc_macro::tracked_path::path(dir.to_str().unwrap());
 
     let expanded = match source_file_names(dir) {
         Ok(names) => names.into_iter().map(|name| mod_item(vis, name)).collect(),
