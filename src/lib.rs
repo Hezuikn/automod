@@ -94,11 +94,15 @@ pub fn dir(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as Arg);
     let vis = &input.vis;
     let rel_path = input.path.value();
+    
+    proc_macro::tracked_env::var("CARGO_MANIFEST_DIR").unwrap();
 
     let dir = match env::var_os("CARGO_MANIFEST_DIR") {
         Some(manifest_dir) => PathBuf::from(manifest_dir).join(rel_path),
         None => PathBuf::from(rel_path),
     };
+    
+    proc_macro::tracked_path::path(dir);
 
     let expanded = match source_file_names(dir) {
         Ok(names) => names.into_iter().map(|name| mod_item(vis, name)).collect(),
