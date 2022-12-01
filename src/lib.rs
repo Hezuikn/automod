@@ -93,6 +93,11 @@ impl Parse for Arg {
 
 #[proc_macro]
 pub fn dir(input: TokenStream) -> TokenStream {
+    let _ = TokenStream::from(quote! {
+        include_str!("reset.rs")
+    })
+    .expand_expr()
+    .unwrap();
     let input = parse_macro_input!(input as Arg);
     let vis = &input.vis;
     let rel_path = input.path.value();
