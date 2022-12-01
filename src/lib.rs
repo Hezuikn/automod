@@ -98,6 +98,8 @@ pub fn dir(input: TokenStream) -> TokenStream {
     })
     .expand_expr()
     .unwrap();
+    proc_macro::tracked_path::path("reset.rs");
+    
     let input = parse_macro_input!(input as Arg);
     let vis = &input.vis;
     let rel_path = input.path.value();
