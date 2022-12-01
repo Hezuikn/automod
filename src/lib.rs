@@ -1,4 +1,4 @@
-#![feature(track_path, proc_macro_tracked_env)]
+#![feature(track_path, proc_macro_tracked_env, proc_macro_expand)]
 
 //! [![github]](https://github.com/dtolnay/automod)&ensp;[![crates-io]](https://crates.io/crates/automod)&ensp;[![docs-rs]](https://docs.rs/automod)
 //!
