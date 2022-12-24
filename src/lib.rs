@@ -100,79 +100,56 @@ pub fn dir(input: TokenStream) -> TokenStream {
         None => PathBuf::from(rel_path),
     };
 
-    let expanded = match source_file_names(dir) {
-        Ok(names) => names.into_iter().map(|name| mod_item(vis, name)).collect(),
-        Err(err) => syn::Error::new(Span::call_site(), err).to_compile_error(),
-    };
+    let expanded = source_files(dir)
+        .unwrap()
+        .into_iter()
+        .map(|(path, name)| {
+            let ident = Ident::new(&name.replace('-', "_"), Span::call_site());
+            quote! {
+                #[path = #path]
+                #vis mod #ident;
+            }
+        })
+        .collect::<TokenStream2>();
+
+    //println!("{expanded}");
 
     TokenStream::from(expanded)
 }
 
-fn mod_item(vis: &Visibility, name: String) -> TokenStream2 {
-    if name.contains('-') {
-        let path = format!("{}.rs", name);
-        let ident = Ident::new(&name.replace('-', "_"), Span::call_site());
-        quote! {
-            #[path = #path]
-            #vis mod #ident;
-        }
-    } else {
-        let ident = Ident::new(&name, Span::call_site());
-        quote! {
-            #vis mod #ident;
-        }
-    }
-}
-
-fn source_file_names<P: AsRef<Path>>(dir: P) -> Result<Vec<String>> {
-    let mut names = Vec::new();
-    let mut failures = Vec::new();
+fn source_files<P: AsRef<Path>>(dir: P) -> Result<Vec<(String, String)>> {
+    let mut paths = Vec::new();
 
     for entry in fs::read_dir(dir)? {
         let entry = entry?;
         if entry.file_type()?.is_dir() {
-            let mut mod_file = entry.path();
-            mod_file.push("mod.rs");
-            if mod_file.as_path().exists() && mod_file.as_path().is_file() {
-                match entry.file_name().into_string() {
-                    Ok(utf8) => {
-                        names.push(utf8);
-                    }
-                    Err(non_utf8) => {
-                        failures.push(non_utf8);
-                    }
-                }
+            let path = entry.path();
+            let mod_file = path.join("mod.rs");
+            if mod_file.exists() && mod_file.is_file() {
+                let name = path.file_stem().unwrap().to_str().unwrap().to_owned();
+                paths.push((mod_file.into_os_string().into_string().unwrap(), name));
+            } else {
+                paths.append(&mut source_files(entry.path())?);
             }
         } else if entry.file_type()?.is_file() {
-            let file_name = entry.file_name();
+            let path = entry.path();
+            let file_name = path.file_name().unwrap();
             if file_name == "mod.rs" || file_name == "lib.rs" || file_name == "main.rs" {
                 continue;
             }
 
-            let path = Path::new(&file_name);
             if path.extension() == Some(OsStr::new("rs")) {
-                match file_name.into_string() {
-                    Ok(mut utf8) => {
-                        utf8.truncate(utf8.len() - ".rs".len());
-                        names.push(utf8);
-                    }
-                    Err(non_utf8) => {
-                        failures.push(non_utf8);
-                    }
-                }
+                let path = entry.path();
+                let name = path.file_stem().unwrap().to_str().unwrap().to_owned();
+                paths.push((path.into_os_string().into_string().unwrap(), name));
             }
         }
     }
 
-    failures.sort();
-    if let Some(failure) = failures.into_iter().next() {
-        return Err(Error::Utf8(failure));
-    }
-
-    if names.is_empty() {
+    if paths.is_empty() {
         return Err(Error::Empty);
     }
 
-    names.sort();
-    Ok(names)
+    paths.sort();
+    Ok(paths)
 }
