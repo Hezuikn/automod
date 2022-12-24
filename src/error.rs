@@ -1,10 +1,9 @@
-use std::ffi::OsString;
 use std::fmt::{self, Display};
 use std::io;
 
+#[derive(Debug)]
 pub enum Error {
     Io(io::Error),
-    Utf8(OsString),
     Empty,
 }
 
@@ -16,11 +15,6 @@ impl Display for Error {
 
         match self {
             Io(err) => err.fmt(f),
-            Utf8(name) => write!(
-                f,
-                "unsupported non-utf8 file name: {}",
-                name.to_string_lossy(),
-            ),
             Empty => f.write_str("no source files found"),
         }
     }
