@@ -101,7 +101,6 @@ pub fn dir(input: TokenStream) -> TokenStream {
     };
 
     let expanded = source_files(dir)
-        .unwrap()
         .into_iter()
         .map(|(path, name)| {
             let ident = Ident::new(&name.replace('-', "_"), Span::call_site());
@@ -117,39 +116,47 @@ pub fn dir(input: TokenStream) -> TokenStream {
     TokenStream::from(expanded)
 }
 
-fn source_files<P: AsRef<Path>>(dir: P) -> Result<Vec<(String, String)>> {
+fn source_files<P: AsRef<Path>>(dir: P) -> Vec<(String, String)> {
     let mut paths = Vec::new();
 
-    for entry in fs::read_dir(dir)? {
-        let entry = entry?;
-        if entry.file_type()?.is_dir() {
-            let path = entry.path();
+    for entry in fs::read_dir(&dir).unwrap() {
+        let entry = entry.unwrap();
+        let path = entry.path();
+        let name_path = path
+            .canonicalize()
+            .unwrap()
+            .strip_prefix(Path::new(dir.as_ref()).canonicalize().unwrap())
+            .unwrap()
+            .with_extension("");
+        let mut name = String::new();
+        for component in name_path.components() {
+            match component {
+                std::path::Component::Normal(x) => {
+                    name += x.to_str().unwrap();
+                }
+                _ => panic!(),
+            }
+        }
+
+        if entry.file_type().unwrap().is_dir() {
             let mod_file = path.join("mod.rs");
             if mod_file.exists() && mod_file.is_file() {
-                let name = path.file_stem().unwrap().to_str().unwrap().to_owned();
                 paths.push((mod_file.into_os_string().into_string().unwrap(), name));
             } else {
-                paths.append(&mut source_files(entry.path())?);
+                paths.append(&mut source_files(path));
             }
-        } else if entry.file_type()?.is_file() {
-            let path = entry.path();
+        } else if entry.file_type().unwrap().is_file() {
             let file_name = path.file_name().unwrap();
             if file_name == "mod.rs" || file_name == "lib.rs" || file_name == "main.rs" {
                 continue;
             }
 
             if path.extension() == Some(OsStr::new("rs")) {
-                let path = entry.path();
-                let name = path.file_stem().unwrap().to_str().unwrap().to_owned();
                 paths.push((path.into_os_string().into_string().unwrap(), name));
             }
         }
     }
 
-    if paths.is_empty() {
-        return Err(Error::Empty);
-    }
-
     paths.sort();
-    Ok(paths)
+    return paths;
 }
