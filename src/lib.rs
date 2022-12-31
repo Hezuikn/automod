@@ -62,9 +62,6 @@
 
 extern crate proc_macro;
 
-mod error;
-
-use crate::error::{Error, Result};
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use quote::quote;
@@ -100,7 +97,7 @@ pub fn dir(input: TokenStream) -> TokenStream {
         None => PathBuf::from(rel_path),
     };
 
-    let expanded = source_files(dir)
+    let expanded = source_files(&dir, &dir)
         .into_iter()
         .map(|(path, name)| {
             let ident = Ident::new(&name.replace('-', "_"), Span::call_site());
@@ -116,16 +113,16 @@ pub fn dir(input: TokenStream) -> TokenStream {
     TokenStream::from(expanded)
 }
 
-fn source_files<P: AsRef<Path>>(dir: P) -> Vec<(String, String)> {
+fn source_files(top_dir: &Path, current_dir: &Path) -> Vec<(String, String)> {
     let mut paths = Vec::new();
 
-    for entry in fs::read_dir(&dir).unwrap() {
+    for entry in fs::read_dir(current_dir).unwrap() {
         let entry = entry.unwrap();
         let path = entry.path();
         let name_path = path
             .canonicalize()
             .unwrap()
-            .strip_prefix(Path::new(dir.as_ref()).canonicalize().unwrap())
+            .strip_prefix(Path::new(top_dir).canonicalize().unwrap())
             .unwrap()
             .with_extension("");
         let mut name = String::new();
@@ -143,7 +140,7 @@ fn source_files<P: AsRef<Path>>(dir: P) -> Vec<(String, String)> {
             if mod_file.exists() && mod_file.is_file() {
                 paths.push((mod_file.into_os_string().into_string().unwrap(), name));
             } else {
-                paths.append(&mut source_files(path));
+                paths.append(&mut source_files(top_dir, &path));
             }
         } else if entry.file_type().unwrap().is_file() {
             let file_name = path.file_name().unwrap();
