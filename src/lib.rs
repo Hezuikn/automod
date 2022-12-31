@@ -125,15 +125,14 @@ fn source_files(top_dir: &Path, current_dir: &Path) -> Vec<(String, String)> {
             .strip_prefix(Path::new(top_dir).canonicalize().unwrap())
             .unwrap()
             .with_extension("");
-        let mut name = String::new();
-        for component in name_path.components() {
-            match component {
-                std::path::Component::Normal(x) => {
-                    name += x.to_str().unwrap();
-                }
+        let name = name_path
+            .components()
+            .map(|x| match x {
+                std::path::Component::Normal(x) => x.to_str().unwrap(),
                 _ => panic!(),
-            }
-        }
+            })
+            .collect::<Vec<_>>()
+            .join("_");
 
         if entry.file_type().unwrap().is_dir() {
             let mod_file = path.join("mod.rs");
